@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard Productividad — 2026-05-14 → 2026-05-14</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f4f0;--surface:#fff;--surface2:#f0efe9;
+  --text:#1a1a18;--muted:#6b6a65;--border:rgba(0,0,0,0.09);
+  --green:#1D9E75;--amber:#EF9F27;--red:#E24B4A;--blue:#378ADD;--purple:#534AB7;
+  --teal:#0F6E56;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+
+/* HEADER */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.hdr-left h1{font-size:16px;font-weight:600}
+.hdr-left p{font-size:12px;color:var(--muted);margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+.gen-tag{background:var(--surface2);padding:4px 12px;border-radius:20px}
+
+/* SLICER BAR */
+.slicer-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.slicer-bar label{font-size:12px;color:var(--muted);font-weight:500}
+.seg-group{display:flex;gap:3px}
+.seg{font-size:12px;padding:4px 12px;border:1px solid var(--border);border-radius:20px;background:var(--surface);cursor:pointer;color:var(--muted);font-weight:500;transition:.15s}
+.seg:hover{background:var(--surface2)}
+.seg.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+.date-range{display:flex;align-items:center;gap:6px;font-size:12px}
+.date-range input{font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer}
+.agent-filter select{font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)}
+.filter-info{font-size:11px;color:var(--muted);margin-left:auto}
+
+/* LAYOUT */
+.wrap{max-width:1240px;margin:0 auto;padding:20px 24px}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.kpi-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.kpi-val{font-size:24px;font-weight:600}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* TABS */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px}
+.tab{padding:8px 18px;font-size:13px;cursor:pointer;border:none;background:transparent;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500}
+.tab.active{color:var(--text);border-bottom-color:var(--purple)}
+.panel{display:none}.panel.active{display:block}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:10px;overflow:hidden;border:1px solid var(--border);font-size:13px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:9px 11px;text-align:left;background:var(--surface2);border-bottom:1px solid var(--border);font-weight:500;white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--text)}
+td{padding:8px 11px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf8}
+.sort-icon{opacity:.4;font-size:10px}
+th.sorted .sort-icon{opacity:1}
+
+/* BADGES */
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
+.ok{background:#EAF3DE;color:#3B6D11}.warn{background:#FAEEDA;color:#854F0B}.bad{background:#FCEBEB;color:#A32D2D}
+
+/* BARS */
+.bw{background:var(--surface2);border-radius:3px;height:7px;width:80px;display:inline-block;overflow:hidden;vertical-align:middle}
+.bf{height:100%;border-radius:3px}
+
+/* CHARTS */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.chart-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--muted);margin-bottom:8px}
+.ld{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle}
+
+/* ANOMALIES */
+.anom-list{display:flex;flex-direction:column;gap:6px}
+.anom{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.anom.high{border-left:3px solid var(--red)}.anom.medium{border-left:3px solid var(--amber)}
+.anom-name{font-weight:600;min-width:160px;font-size:13px}
+.anom-type{font-size:13px}.anom-detail{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* SORT BAR */
+.sort-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sort-bar span{font-size:11px;color:var(--muted)}
+.sb{font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:20px;background:var(--surface);cursor:pointer;color:var(--muted)}
+.sb.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+
+.no-data{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+
+@media(max-width:900px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .chart-grid{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .slicer-bar{gap:8px}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <h1>Dashboard de Productividad — Agentes de Cobro</h1>
+    <p id="period-label">Período: 2026-05-14 → 2026-05-14</p>
+  </div>
+  <div class="hdr-right">
+    <span class="gen-tag">Actualizado: 16/05/2026 14:54</span>
+  </div>
+</div>
+
+<!-- SLICER -->
+<div class="slicer-bar">
+  <label>Período:</label>
+  <div class="seg-group" id="period-btns">
+    <button class="seg active" data-period="all">Todo</button>
+    <button class="seg" data-period="week">Esta semana</button>
+    <button class="seg" data-period="custom">Personalizado</button>
+  </div>
+  <div class="date-range" id="custom-range" style="display:none">
+    <input type="date" id="date-from" title="Desde">
+    <span style="color:var(--muted)">→</span>
+    <input type="date" id="date-to" title="Hasta">
+    <button class="seg" onclick="applyCustom()" style="background:var(--purple);color:#fff;border-color:var(--purple)">Aplicar</button>
+  </div>
+  <div class="agent-filter">
+    <select id="agent-select" onchange="applyFilters()">
+      <option value="">Todos los agentes</option>
+    </select>
+  </div>
+  <div class="agent-filter">
+    <select id="supervisor-select" onchange="applyFilters()">
+      <option value="">Todos los supervisores</option>
+    </select>
+  </div>
+  <span class="filter-info" id="filter-info"></span>
+</div>
+
+<div class="wrap">
+
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi"><div class="kpi-lbl">Agentes activos</div><div class="kpi-val" id="k-agentes">—</div><div class="kpi-sub" id="k-agentes-sub"></div></div>
+  <div class="kpi"><div class="kpi-lbl">% Puntualidad</div><div class="kpi-val" id="k-puntual">—</div><div class="kpi-sub" id="k-puntual-sub"></div></div>
+  <div class="kpi"><div class="kpi-lbl">% Tiempo productivo</div><div class="kpi-val" id="k-prod">—</div><div class="kpi-sub">del tiempo conectado</div></div>
+  <div class="kpi"><div class="kpi-lbl">Total conectado</div><div class="kpi-val" id="k-total">—</div><div class="kpi-sub" id="k-total-sub"></div></div>
+  <div class="kpi"><div class="kpi-lbl">Auto-logoffs</div><div class="kpi-val" id="k-auto">—</div><div class="kpi-sub" id="k-auto-sub"></div></div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('resumen')">Resumen</button>
+  <button class="tab" onclick="switchTab('graficos')">Gráficos</button>
+  <button class="tab" onclick="switchTab('detalle')">Detalle diario</button>
+  <button class="tab" onclick="switchTab('anomalias')">Alertas</button>
+</div>
+
+<!-- RESUMEN -->
+<div id="panel-resumen" class="panel active">
+  <div class="sort-bar">
+    <span>Ordenar:</span>
+    <button class="sb active" onclick="sortBy('pct_prod')">% Productivo</button>
+    <button class="sb" onclick="sortBy('pct_puntual')">Puntualidad</button>
+    <button class="sb" onclick="sortBy('total_min')">Tiempo conectado</button>
+    <button class="sb" onclick="sortBy('pct_break')">% Pausas</button>
+    <button class="sb" onclick="sortBy('auto_logoff')">Auto-logoff</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Agente</th><th>Supervisor</th><th>Login prom.</th><th>Conectado</th>
+        <th>Productivo</th><th>% Prod.</th><th>Pausas</th><th>% Pausas</th>
+        <th>Puntualidad</th><th>Auto-log.</th><th>Sesiones</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<!-- GRÁFICOS -->
+<div id="panel-graficos" class="panel">
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">% Productivo vs Pausas</div>
+      <div class="legend"><span><span class="ld" style="background:#1D9E75"></span>Productivo</span><span><span class="ld" style="background:#FAC775"></span>Pausas</span></div>
+      <div style="position:relative;height:320px"><canvas id="c1" role="img" aria-label="Productivo vs pausas"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Composición de pausas (minutos)</div>
+      <div class="legend" id="leg2"></div>
+      <div style="position:relative;height:320px"><canvas id="c2" role="img" aria-label="Composición pausas"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Horas conectadas por agente</div>
+      <div class="legend"><span><span class="ld" style="background:#534AB7"></span>≥75% prod.</span><span><span class="ld" style="background:#AFA9EC"></span>&lt;75% prod.</span></div>
+      <div style="position:relative;height:320px"><canvas id="c3" role="img" aria-label="Horas conectadas"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Puntualidad y auto-logoffs</div>
+      <div class="legend"><span><span class="ld" style="background:#378ADD"></span>% Puntualidad</span><span><span class="ld" style="background:#D85A30"></span>Auto-logoffs</span></div>
+      <div style="position:relative;height:320px"><canvas id="c4" role="img" aria-label="Puntualidad y auto-logoffs"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- DETALLE DIARIO -->
+<div id="panel-detalle" class="panel">
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th><th>Agente</th><th>Login</th><th>Logoff</th>
+        <th>Conectado</th><th>Productivo</th><th>% Prod.</th>
+        <th>Almuerzo</th><th>Baño</th><th>Café</th><th>Reunión</th><th>Entrenamiento</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-daily"></tbody>
+  </table>
+</div>
+
+<!-- ALERTAS -->
+<div id="panel-anomalias" class="panel">
+  <div class="anom-list" id="anom-list"></div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const WEEKLY  = [{"name": "Bryan Fernando Martínez", "supervisor": "Abraham Maldonado", "date": "2026-05-14", "login_str": "07:58", "logoff_str": "17:19", "pct_puntual": 100.0, "sesiones": 4, "cortes": 1, "auto_logoff": 2, "min_tarde": 0.7, "tiempo_total": "25:16", "total_min": 1516, "total_h": 25.27, "brk_min": 69.0, "prod_min": 1447.0, "pct_prod": 95.4, "pct_break": 4300.0, "breaks_exceso": 4, "total_breaks": 196, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Deyvi Moisés Membreño Castaño", "supervisor": "Abraham Maldonado", "date": "2026-05-14", "login_str": "07:31", "logoff_str": "18:00", "pct_puntual": 100.0, "sesiones": 6, "cortes": 1, "auto_logoff": 0, "min_tarde": 0.0, "tiempo_total": "50:11", "total_min": 3011, "total_h": 50.18, "brk_min": 117.0, "prod_min": 2894.0, "pct_prod": 96.1, "pct_break": 12300.0, "breaks_exceso": 123, "total_breaks": 289, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Eiling Alexandra Bustos Morales", "supervisor": "Abraham Maldonado", "date": "2026-05-14", "login_str": "07:55", "logoff_str": "18:00", "pct_puntual": 100.0, "sesiones": 5, "cortes": 0, "auto_logoff": 4, "min_tarde": 0.0, "tiempo_total": "48:33", "total_min": 2913, "total_h": 48.55, "brk_min": 57.0, "prod_min": 2856.0, "pct_prod": 98.0, "pct_break": 12300.0, "breaks_exceso": 115, "total_breaks": 298, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Yesenia Cervantes Villa", "supervisor": "Abraham Maldonado", "date": "2026-05-14", "login_str": "08:02", "logoff_str": "17:42", "pct_puntual": 80.0, "sesiones": 11, "cortes": 6, "auto_logoff": 11, "min_tarde": 6.4, "tiempo_total": "47:37", "total_min": 2857, "total_h": 47.62, "brk_min": 45.0, "prod_min": 2812.0, "pct_prod": 98.4, "pct_break": 18200.0, "breaks_exceso": 0, "total_breaks": 233, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Yesica Raquel Hurtado Escamilla", "supervisor": "Abraham Maldonado", "date": "2026-05-14", "login_str": "07:53", "logoff_str": "17:14", "pct_puntual": 100.0, "sesiones": 12, "cortes": 7, "auto_logoff": 1, "min_tarde": 0.6, "tiempo_total": "45:45", "total_min": 2745, "total_h": 45.75, "brk_min": 57.0, "prod_min": 2688.0, "pct_prod": 97.9, "pct_break": 22200.0, "breaks_exceso": 0, "total_breaks": 286, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Gabriela Ileana Mcelroy Triguero", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:56", "logoff_str": "17:03", "pct_puntual": 100.0, "sesiones": 5, "cortes": 0, "auto_logoff": 0, "min_tarde": 0.2, "tiempo_total": "45:20", "total_min": 2720, "total_h": 45.33, "brk_min": 69.0, "prod_min": 2651.0, "pct_prod": 97.5, "pct_break": 7100.0, "breaks_exceso": 107, "total_breaks": 297, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Juan David Herrera Hernández", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:59", "logoff_str": "17:02", "pct_puntual": 100.0, "sesiones": 5, "cortes": 0, "auto_logoff": 0, "min_tarde": 0.0, "tiempo_total": "46:08", "total_min": 2768, "total_h": 46.13, "brk_min": 31.0, "prod_min": 2737.0, "pct_prod": 98.9, "pct_break": 15400.0, "breaks_exceso": 49, "total_breaks": 298, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Kevin Antonio Núñez Pavon", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:59", "logoff_str": "17:01", "pct_puntual": 100.0, "sesiones": 5, "cortes": 0, "auto_logoff": 0, "min_tarde": 0.0, "tiempo_total": "45:56", "total_min": 2756, "total_h": 45.93, "brk_min": 26.0, "prod_min": 2730.0, "pct_prod": 99.1, "pct_break": 6100.0, "breaks_exceso": 83, "total_breaks": 270, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Quinny Isabel Wilson Rodríguez", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:57", "logoff_str": "17:00", "pct_puntual": 100.0, "sesiones": 9, "cortes": 4, "auto_logoff": 9, "min_tarde": 0.8, "tiempo_total": "43:09", "total_min": 2589, "total_h": 43.15, "brk_min": 66.0, "prod_min": 2523.0, "pct_prod": 97.5, "pct_break": 6300.0, "breaks_exceso": 108, "total_breaks": 259, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Tania del Carmen Narváez Leiva", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:59", "logoff_str": "17:05", "pct_puntual": 100.0, "sesiones": 5, "cortes": 0, "auto_logoff": 0, "min_tarde": 0.0, "tiempo_total": "45:49", "total_min": 2749, "total_h": 45.82, "brk_min": 5.0, "prod_min": 2744.0, "pct_prod": 99.8, "pct_break": 0.0, "breaks_exceso": 15, "total_breaks": 261, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Dulce María Castillo Corea", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:57", "logoff_str": "13:38", "pct_puntual": 100.0, "sesiones": 6, "cortes": 1, "auto_logoff": 0, "min_tarde": 0.4, "tiempo_total": "38:46", "total_min": 2326, "total_h": 38.77, "brk_min": 27.0, "prod_min": 2299.0, "pct_prod": 98.8, "pct_break": 0.0, "breaks_exceso": 107, "total_breaks": 298, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}, {"name": "Melanie Judith Gaitán Miranda", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:59", "logoff_str": "17:22", "pct_puntual": 80.0, "sesiones": 7, "cortes": 2, "auto_logoff": 0, "min_tarde": 1.2, "tiempo_total": "46:02", "total_min": 2762, "total_h": 46.03, "brk_min": 26.0, "prod_min": 2736.0, "pct_prod": 99.1, "pct_break": 8300.0, "breaks_exceso": 125, "total_breaks": 300, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0}];
+const DAILY   = [{"name": "Bryan Fernando Martínez", "supervisor": "Abraham Maldonado", "date": "2026-05-14", "login_str": "07:58", "logoff_str": "17:19", "pct_puntual": 100.0, "sesiones": 4, "cortes": 1, "auto_logoff": 2, "min_tarde": 0.7, "tiempo_total": "25:16", "total_min": 1516, "total_h": 25.27, "brk_min": 69.0, "prod_min": 1447.0, "pct_prod": 95.4, "pct_break": 4300.0, "breaks_exceso": 4, "total_breaks": 196, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 1}, {"name": "Deyvi Moisés Membreño Castaño", "supervisor": "Abraham Maldonado", "date": "2026-05-14", "login_str": "07:31", "logoff_str": "18:00", "pct_puntual": 100.0, "sesiones": 6, "cortes": 1, "auto_logoff": 0, "min_tarde": 0.0, "tiempo_total": "50:11", "total_min": 3011, "total_h": 50.18, "brk_min": 117.0, "prod_min": 2894.0, "pct_prod": 96.1, "pct_break": 12300.0, "breaks_exceso": 123, "total_breaks": 289, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 1}, {"name": "Eiling Alexandra Bustos Morales", "supervisor": "Abraham Maldonado", "date": "2026-05-14", "login_str": "07:55", "logoff_str": "18:00", "pct_puntual": 100.0, "sesiones": 5, "cortes": 0, "auto_logoff": 4, "min_tarde": 0.0, "tiempo_total": "48:33", "total_min": 2913, "total_h": 48.55, "brk_min": 57.0, "prod_min": 2856.0, "pct_prod": 98.0, "pct_break": 12300.0, "breaks_exceso": 115, "total_breaks": 298, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 1}, {"name": "Yesenia Cervantes Villa", "supervisor": "Abraham Maldonado", "date": "2026-05-14", "login_str": "08:02", "logoff_str": "17:42", "pct_puntual": 80.0, "sesiones": 11, "cortes": 6, "auto_logoff": 11, "min_tarde": 6.4, "tiempo_total": "47:37", "total_min": 2857, "total_h": 47.62, "brk_min": 45.0, "prod_min": 2812.0, "pct_prod": 98.4, "pct_break": 18200.0, "breaks_exceso": 0, "total_breaks": 233, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 0}, {"name": "Yesica Raquel Hurtado Escamilla", "supervisor": "Abraham Maldonado", "date": "2026-05-14", "login_str": "07:53", "logoff_str": "17:14", "pct_puntual": 100.0, "sesiones": 12, "cortes": 7, "auto_logoff": 1, "min_tarde": 0.6, "tiempo_total": "45:45", "total_min": 2745, "total_h": 45.75, "brk_min": 57.0, "prod_min": 2688.0, "pct_prod": 97.9, "pct_break": 22200.0, "breaks_exceso": 0, "total_breaks": 286, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 1}, {"name": "Gabriela Ileana Mcelroy Triguero", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:56", "logoff_str": "17:03", "pct_puntual": 100.0, "sesiones": 5, "cortes": 0, "auto_logoff": 0, "min_tarde": 0.2, "tiempo_total": "45:20", "total_min": 2720, "total_h": 45.33, "brk_min": 69.0, "prod_min": 2651.0, "pct_prod": 97.5, "pct_break": 7100.0, "breaks_exceso": 107, "total_breaks": 297, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 1}, {"name": "Juan David Herrera Hernández", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:59", "logoff_str": "17:02", "pct_puntual": 100.0, "sesiones": 5, "cortes": 0, "auto_logoff": 0, "min_tarde": 0.0, "tiempo_total": "46:08", "total_min": 2768, "total_h": 46.13, "brk_min": 31.0, "prod_min": 2737.0, "pct_prod": 98.9, "pct_break": 15400.0, "breaks_exceso": 49, "total_breaks": 298, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 1}, {"name": "Kevin Antonio Núñez Pavon", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:59", "logoff_str": "17:01", "pct_puntual": 100.0, "sesiones": 5, "cortes": 0, "auto_logoff": 0, "min_tarde": 0.0, "tiempo_total": "45:56", "total_min": 2756, "total_h": 45.93, "brk_min": 26.0, "prod_min": 2730.0, "pct_prod": 99.1, "pct_break": 6100.0, "breaks_exceso": 83, "total_breaks": 270, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 1}, {"name": "Quinny Isabel Wilson Rodríguez", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:57", "logoff_str": "17:00", "pct_puntual": 100.0, "sesiones": 9, "cortes": 4, "auto_logoff": 9, "min_tarde": 0.8, "tiempo_total": "43:09", "total_min": 2589, "total_h": 43.15, "brk_min": 66.0, "prod_min": 2523.0, "pct_prod": 97.5, "pct_break": 6300.0, "breaks_exceso": 108, "total_breaks": 259, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 1}, {"name": "Tania del Carmen Narváez Leiva", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:59", "logoff_str": "17:05", "pct_puntual": 100.0, "sesiones": 5, "cortes": 0, "auto_logoff": 0, "min_tarde": 0.0, "tiempo_total": "45:49", "total_min": 2749, "total_h": 45.82, "brk_min": 5.0, "prod_min": 2744.0, "pct_prod": 99.8, "pct_break": 0.0, "breaks_exceso": 15, "total_breaks": 261, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 1}, {"name": "Dulce María Castillo Corea", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:57", "logoff_str": "13:38", "pct_puntual": 100.0, "sesiones": 6, "cortes": 1, "auto_logoff": 0, "min_tarde": 0.4, "tiempo_total": "38:46", "total_min": 2326, "total_h": 38.77, "brk_min": 27.0, "prod_min": 2299.0, "pct_prod": 98.8, "pct_break": 0.0, "breaks_exceso": 107, "total_breaks": 298, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 1}, {"name": "Melanie Judith Gaitán Miranda", "supervisor": "Leydis Jaime", "date": "2026-05-14", "login_str": "07:59", "logoff_str": "17:22", "pct_puntual": 80.0, "sesiones": 7, "cortes": 2, "auto_logoff": 0, "min_tarde": 1.2, "tiempo_total": "46:02", "total_min": 2762, "total_h": 46.03, "brk_min": 26.0, "prod_min": 2736.0, "pct_prod": 99.1, "pct_break": 8300.0, "breaks_exceso": 125, "total_breaks": 300, "almuerzo": 0, "banio": 0, "cafe": 0, "personal": 0, "datos": 0, "entrena": 0, "reunion": 0, "system_down": 0, "puntual": 0}];
+const DATES   = ["2026-05-14"];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let filtered   = [];
+let filteredD  = [];
+let sortKey    = 'pct_prod';
+let sortDir    = -1;
+let periodMode = 'all';
+let dateFrom   = '';
+let dateTo     = '';
+let agentFilt  = '';
+let supFilt    = '';
+let chartsInst = {};
+let chartsBuilt = false;
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  // Populate selects
+  const agentSel = document.getElementById('agent-select');
+  const supSel   = document.getElementById('supervisor-select');
+  const names    = [...new Set(WEEKLY.map(a=>a.name))].sort();
+  const sups     = [...new Set(WEEKLY.map(a=>a.supervisor).filter(Boolean))].sort();
+  names.forEach(n=>agentSel.add(new Option(n,n)));
+  sups.forEach(s=>supSel.add(new Option(s,s)));
+
+  // Date range defaults
+  if (DATES.length) {
+    document.getElementById('date-from').value = DATES[0];
+    document.getElementById('date-to').value   = DATES[DATES.length-1];
+  }
+
+  // Period buttons
+  document.querySelectorAll('[data-period]').forEach(btn=>
+    btn.addEventListener('click', ()=> setPeriod(btn.dataset.period)));
+
+  applyFilters();
+}
+
+function setPeriod(p) {
+  periodMode = p;
+  document.querySelectorAll('[data-period]').forEach(b=>b.classList.toggle('active', b.dataset.period===p));
+  document.getElementById('custom-range').style.display = p==='custom' ? 'flex' : 'none';
+  if (p !== 'custom') applyFilters();
+}
+
+function applyCustom() {
+  dateFrom = document.getElementById('date-from').value;
+  dateTo   = document.getElementById('date-to').value;
+  applyFilters();
+}
+
+function applyFilters() {
+  agentFilt = document.getElementById('agent-select').value;
+  supFilt   = document.getElementById('supervisor-select').value;
+
+  let from='', to='';
+  if (periodMode === 'week') {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const mon   = new Date(today); mon.setDate(today.getDate() - today.getDay() + 1);
+    from = mon.toISOString().slice(0,10);
+    to   = today.toISOString().slice(0,10);
+  } else if (periodMode === 'custom') {
+    from = document.getElementById('date-from').value;
+    to   = document.getElementById('date-to').value;
+  }
+
+  // Filter weekly (for resumen/graficos, aggregate if multi-day)
+  if (DAILY.length && periodMode !== 'all') {
+    // Aggregate daily into synthetic weekly per agent
+    const daysFilt = DAILY.filter(r=>
+      (!from || r.date >= from) && (!to || r.date <= to) &&
+      (!agentFilt || r.name === agentFilt) &&
+      (!supFilt   || r.supervisor === supFilt)
+    );
+    filtered = aggregateDailyToWeekly(daysFilt);
+    filteredD = daysFilt;
+  } else {
+    filtered = WEEKLY.filter(a=>
+      (!agentFilt || a.name === agentFilt) &&
+      (!supFilt   || a.supervisor === supFilt)
+    );
+    filteredD = DAILY.filter(r=>
+      (!agentFilt || r.name === agentFilt) &&
+      (!supFilt   || r.supervisor === supFilt)
+    );
+  }
+
+  const label = from && to ? from+' → '+to : 'Período completo';
+  document.getElementById('filter-info').textContent =
+    filtered.length + ' agentes · ' + filteredD.length + ' registros';
+
+  renderKPIs();
+  renderTable();
+  renderDaily();
+  renderAnomalies();
+  if (chartsBuilt) rebuildCharts();
+}
+
+function aggregateDailyToWeekly(days) {
+  const byAgent = {};
+  for (const r of days) {
+    if (!byAgent[r.name]) byAgent[r.name] = {
+      name:r.name, supervisor:r.supervisor,
+      total_min:0, brk_min:0, prod_min:0,
+      auto_logoff:0, sesiones:0, puntual_days:0, total_days:0,
+      almuerzo:0,banio:0,cafe:0,personal:0,reunion:0,entrena:0,datos:0,
+      login_str:r.login_str
+    };
+    const a = byAgent[r.name];
+    a.total_min  += r.total_min;
+    a.brk_min    += r.brk_min;
+    a.prod_min   += r.prod_min;
+    a.auto_logoff+= (r.auto_logoff||0);
+    a.sesiones   += (r.sesiones||1);
+    a.puntual_days += (r.puntual||0);
+    a.total_days += 1;
+    a.almuerzo += (r.almuerzo||0);
+    a.banio    += (r.banio||0);
+    a.cafe     += (r.cafe||0);
+    a.personal += (r.personal||0);
+    a.reunion  += (r.reunion||0);
+    a.entrena  += (r.entrena||0);
+    a.datos    += (r.datos||0);
+  }
+  return Object.values(byAgent).map(a => ({
+    ...a,
+    pct_prod:   Math.round(a.prod_min / Math.max(a.total_min,1) * 1000)/10,
+    pct_break:  Math.round(a.brk_min  / Math.max(a.total_min,1) * 1000)/10,
+    pct_puntual: Math.round(a.puntual_days / Math.max(a.total_days,1) * 1000)/10,
+    total_h:    Math.round(a.total_min/60*100)/100,
+  }));
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function fmtMin(m){const h=Math.floor(m/60),mn=Math.round(m%60);return h+'h '+String(mn).padStart(2,'0')+'m';}
+function barHtml(p,c){return `<div class="bw"><div class="bf" style="width:${Math.min(p,100)}%;background:${c}"></div></div> <span style="font-size:11px;color:var(--muted)">${p}%</span>`;}
+function badgePct(p){const cl=p>=95?'ok':p>=80?'warn':'bad';return `<span class="badge ${cl}">${p}%</span>`;}
+function badgeAuto(n){return n>10?`<span class="badge bad">${n}</span>`:n>=4?`<span class="badge warn">${n}</span>`:n;}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function renderKPIs() {
+  const n  = filtered.length;
+  const tm = filtered.reduce((s,a)=>s+a.total_min,0);
+  const pm = filtered.reduce((s,a)=>s+a.prod_min,0);
+  const al = filtered.reduce((s,a)=>s+(a.auto_logoff||0),0);
+  const pp = n ? Math.round(filtered.reduce((s,a)=>s+a.pct_puntual,0)/n*10)/10 : 0;
+  const pr = tm ? Math.round(pm/tm*1000)/10 : 0;
+  const p100 = filtered.filter(a=>a.pct_puntual>=100).length;
+
+  document.getElementById('k-agentes').textContent = n;
+  document.getElementById('k-agentes-sub').textContent = 'en el período';
+  document.getElementById('k-puntual').textContent  = pp+'%';
+  document.getElementById('k-puntual-sub').textContent = p100+' agentes con 100%';
+  document.getElementById('k-prod').textContent    = pr+'%';
+  document.getElementById('k-total').textContent   = fmtMin(tm);
+  document.getElementById('k-total-sub').textContent = 'tiempo conectado total';
+  document.getElementById('k-auto').textContent    = al;
+  document.getElementById('k-auto-sub').textContent = 'en el período';
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────────────
+let _sortDir = -1, _sortKey = 'pct_prod';
+function sortBy(k) {
+  if (_sortKey===k) _sortDir*=-1; else {_sortKey=k;_sortDir=-1;}
+  document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().includes(k.replace('_',' '))||b.onclick?.toString().includes(k)));
+  renderTable();
+}
+function renderTable() {
+  const data = [...filtered].sort((a,b)=>_sortDir*(((a[_sortKey]||0))-(b[_sortKey]||0)));
+  const tbody = document.getElementById('tbody');
+  if (!data.length) { tbody.innerHTML='<tr><td colspan="11" class="no-data">Sin datos para el período seleccionado</td></tr>'; return; }
+  tbody.innerHTML = data.map(a=>`
+    <tr>
+      <td style="font-weight:600">${a.name}</td>
+      <td style="color:var(--muted);font-size:12px">${a.supervisor||'—'}</td>
+      <td style="font-variant-numeric:tabular-nums">${a.login_str||'—'}</td>
+      <td>${fmtMin(a.total_min)}</td>
+      <td>${fmtMin(a.prod_min)}</td>
+      <td>${barHtml(a.pct_prod, a.pct_prod>=75?'#1D9E75':'#EF9F27')}</td>
+      <td>${fmtMin(a.brk_min)}</td>
+      <td>${barHtml(a.pct_break, a.pct_break>28?'#E24B4A':a.pct_break>22?'#EF9F27':'#1D9E75')}</td>
+      <td>${badgePct(a.pct_puntual)}</td>
+      <td>${badgeAuto(a.auto_logoff||0)}</td>
+      <td style="color:var(--muted)">${a.sesiones||'—'}</td>
+    </tr>`).join('');
+}
+
+// ── DAILY TABLE ───────────────────────────────────────────────────────────────
+function renderDaily() {
+  const data = [...filteredD].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:a.name.localeCompare(b.name));
+  const tbody = document.getElementById('tbody-daily');
+  if (!data.length) { tbody.innerHTML='<tr><td colspan="12" class="no-data">Sin datos diarios disponibles</td></tr>'; return; }
+  tbody.innerHTML = data.map(r=>`
+    <tr>
+      <td style="font-variant-numeric:tabular-nums;white-space:nowrap">${r.date}</td>
+      <td style="font-weight:500">${r.name}</td>
+      <td>${r.login_str||'—'}</td>
+      <td>${r.logoff_str||'—'}</td>
+      <td>${fmtMin(r.total_min)}</td>
+      <td>${fmtMin(r.prod_min)}</td>
+      <td>${barHtml(r.pct_prod, r.pct_prod>=75?'#1D9E75':'#EF9F27')}</td>
+      <td style="color:var(--muted)">${Math.round(r.almuerzo||0)}m</td>
+      <td style="color:var(--muted)">${Math.round(r.banio||0)}m</td>
+      <td style="color:var(--muted)">${Math.round(r.cafe||0)}m</td>
+      <td style="color:var(--muted)">${Math.round(r.reunion||0)}m</td>
+      <td style="color:var(--muted)">${Math.round(r.entrena||0)}m</td>
+    </tr>`).join('');
+}
+
+// ── ANOMALIES ─────────────────────────────────────────────────────────────────
+function renderAnomalies() {
+  const anoms = [];
+  for (const a of filtered) {
+    if (a.pct_break > 30) anoms.push({n:a.name,t:'Alto % de pausas',d:a.pct_break+'% del tiempo conectado',s:'high'});
+    else if (a.pct_break > 22) anoms.push({n:a.name,t:'Pausas elevadas',d:a.pct_break+'% del tiempo conectado',s:'medium'});
+    if (a.pct_puntual < 70) anoms.push({n:a.name,t:'Baja puntualidad',d:a.pct_puntual+'% días puntuales',s:'high'});
+    else if (a.pct_puntual < 90) anoms.push({n:a.name,t:'Puntualidad moderada',d:a.pct_puntual+'% días puntuales',s:'medium'});
+    const al = a.auto_logoff||0;
+    if (al>10) anoms.push({n:a.name,t:'Muchos auto-logoffs',d:al+' auto-logoffs detectados',s:'high'});
+    else if (al>=4) anoms.push({n:a.name,t:'Auto-logoffs frecuentes',d:al+' auto-logoffs',s:'medium'});
+    if ((a.breaks_exceso||0)>3) anoms.push({n:a.name,t:'Breaks en exceso',d:(a.breaks_exceso)+' breaks fuera de política',s:'medium'});
+  }
+  anoms.sort((a,b)=>a.s==='high'&&b.s!=='high'?-1:1);
+  const el = document.getElementById('anom-list');
+  if (!anoms.length) { el.innerHTML='<div class="no-data">Sin alertas en el período seleccionado</div>'; return; }
+  el.innerHTML = anoms.map(a=>`
+    <div class="anom ${a.s}">
+      <div class="anom-name">${a.n}</div>
+      <div><div class="anom-type">${a.s==='high'?'⚠️':'🔶'} ${a.t}</div><div class="anom-detail">${a.d}</div></div>
+    </div>`).join('');
+}
+
+// ── CHARTS ───────────────────────────────────────────────────────────────────
+const BT_COLORS = {Almuerzo:'#1D9E75',Reunión:'#534AB7',Entrenamiento:'#378ADD',Café:'#D85A30',Baño:'#888780',Datos:'#EF9F27',Personal:'#E24B4A'};
+
+function switchTab(name) {
+  ['resumen','graficos','detalle','anomalias'].forEach((t,i)=>{
+    document.querySelectorAll('.tab')[i].classList.toggle('active',t===name);
+    document.getElementById('panel-'+t).classList.toggle('active',t===name);
+  });
+  if (name==='graficos') {
+    if (!chartsBuilt) { buildCharts(); chartsBuilt=true; }
+    else rebuildCharts();
+  }
+}
+
+function destroyChart(id) {
+  if (chartsInst[id]) { chartsInst[id].destroy(); delete chartsInst[id]; }
+}
+
+function buildCharts() {
+  renderChart1(); renderChart2(); renderChart3(); renderChart4();
+}
+function rebuildCharts() {
+  destroyChart('c1'); destroyChart('c2'); destroyChart('c3'); destroyChart('c4');
+  buildCharts();
+}
+
+function renderChart1() {
+  const d = [...filtered].sort((a,b)=>b.pct_prod-a.pct_prod);
+  const names = d.map(a=>a.name.split(' ').slice(0,2).join(' '));
+  chartsInst.c1 = new Chart(document.getElementById('c1'),{
+    type:'bar',
+    data:{labels:names,datasets:[
+      {label:'Productivo',data:d.map(a=>a.pct_prod),backgroundColor:'#1D9E75',borderRadius:3},
+      {label:'Pausas',data:d.map(a=>a.pct_break),backgroundColor:'#FAC775',borderRadius:3}
+    ]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{max:100,stacked:true,ticks:{callback:v=>v+'%',font:{size:11}}},y:{stacked:true,ticks:{font:{size:11}}}}
+    }
+  });
+}
+
+function renderChart2() {
+  const d = [...filtered].sort((a,b)=>b.total_min-a.total_min);
+  const names = d.map(a=>a.name.split(' ').slice(0,2).join(' '));
+  const fields = [['almuerzo','Almuerzo'],['reunion','Reunión'],['entrena','Entrenamiento'],['cafe','Café'],['banio','Baño'],['datos','Datos'],['personal','Personal']];
+  document.getElementById('leg2').innerHTML = fields.map(([,lbl])=>`<span><span class="ld" style="background:${BT_COLORS[lbl]}"></span>${lbl}</span>`).join('');
+  chartsInst.c2 = new Chart(document.getElementById('c2'),{
+    type:'bar',
+    data:{labels:names,datasets:fields.map(([key,lbl])=>{
+      return {label:lbl,data:d.map(a=>Math.round((a[key]||0))),backgroundColor:BT_COLORS[lbl],borderRadius:2};
+    })},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{stacked:true,ticks:{callback:v=>v+'m',font:{size:11}}},y:{stacked:true,ticks:{font:{size:11}}}}
+    }
+  });
+}
+
+function renderChart3() {
+  const d = [...filtered].sort((a,b)=>b.total_min-a.total_min);
+  const names = d.map(a=>a.name.split(' ').slice(0,2).join(' '));
+  chartsInst.c3 = new Chart(document.getElementById('c3'),{
+    type:'bar',
+    data:{labels:names,datasets:[{
+      label:'Horas',
+      data:d.map(a=>Math.round(a.total_min/60*10)/10),
+      backgroundColor:d.map(a=>a.pct_prod>=75?'#534AB7':'#AFA9EC'),
+      borderRadius:4
+    }]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{callback:v=>v+'h',font:{size:11}}},y:{ticks:{font:{size:11}}}}
+    }
+  });
+}
+
+function renderChart4() {
+  const d = [...filtered].sort((a,b)=>b.pct_puntual-a.pct_puntual);
+  const names = d.map(a=>a.name.split(' ').slice(0,2).join(' '));
+  chartsInst.c4 = new Chart(document.getElementById('c4'),{
+    type:'bar',
+    data:{labels:names,datasets:[
+      {label:'% puntualidad',data:d.map(a=>a.pct_puntual),backgroundColor:'#378ADD',borderRadius:3,yAxisID:'y'},
+      {label:'Auto-logoffs',data:d.map(a=>a.auto_logoff||0),backgroundColor:'#D85A30',borderRadius:3,yAxisID:'y2'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{maxRotation:35,font:{size:10}}},
+        y:{position:'left',max:100,ticks:{callback:v=>v+'%',font:{size:11}}},
+        y2:{position:'right',grid:{display:false},ticks:{font:{size:11}}}
+      }
+    }
+  });
+}
+
+// ── START ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
